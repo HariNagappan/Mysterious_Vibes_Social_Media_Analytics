@@ -1,0 +1,435 @@
+openapi: 3.0.3
+info:
+  title: PulseGraph API
+  version: "1.0.0"
+  description: >
+    AI-powered social media analytics platform (Smart India Hackathon 2026,
+    Problem Statement 26152). Analyses public conversations on X (Twitter) and
+    Telegram: sentiment, demographics, trends, influence networks and
+    AI-generated intelligence reports.
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: auth
+    description: Registration and JWT login
+  - name: topics
+    description: Monitored conversations
+  - name: timeline
+    description: Chronological posts, growth and important events
+  - name: sentiment
+    description: Emotion distribution and sentiment evolution
+  - name: demographics
+    description: Aggregated audience analytics
+  - name: trends
+    description: Rising keywords and growth scores
+  - name: network
+    description: Influence graph and communities
+  - name: dashboard
+    description: Complete topic intelligence
+  - name: search
+    description: Full-text post search
+security:
+  - BearerAuth: []
+paths:
+  /api/v1/auth/register:
+    post:
+      tags: [auth]
+      security: []
+      summary: Register a dashboard user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 120 }
+                email: { type: string, format: email }
+                password: { type: string, minLength: 8, maxLength: 128 }
+                role: { type: string, enum: [admin, analyst, viewer] }
+      responses:
+        "201":
+          description: User registered; JWT issued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/auth/login:
+    post:
+      tags: [auth]
+      security: []
+      summary: Log in with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        "200":
+          description: JWT issued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthResponse" }
+        "401":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+  /api/v1/topics:
+    get:
+      tags: [topics]
+      summary: List monitored topics
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Paginated topics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  topics:
+                    type: array
+                    items: { $ref: "#/components/schemas/Topic" }
+                  total: { type: integer, format: int64 }
+    post:
+      tags: [topics]
+      summary: Create a monitored topic
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, example: Flood misinformation }
+                keywords:
+                  type: array
+                  items: { type: string }
+                  example: [flood, relief, evacuation]
+                description: { type: string }
+      responses:
+        "201":
+          description: Topic created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Topic" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+  /api/v1/topics/{id}/timeline:
+    get:
+      tags: [timeline]
+      summary: Chronological posts, discussion growth and important events
+      parameters:
+        - { $ref: "#/components/parameters/TopicID" }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: limit, in: query, schema: { type: integer, default: 100, maximum: 500 } }
+        - { name: offset, in: query, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Timeline payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  topic_id: { type: integer, format: int64 }
+                  window: { $ref: "#/components/schemas/Window" }
+                  posts:
+                    type: array
+                    items: { $ref: "#/components/schemas/Post" }
+                  growth:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        bucket: { type: string, format: date-time }
+                        post_count: { type: integer, format: int64 }
+                  important_events:
+                    type: array
+                    items: { $ref: "#/components/schemas/Post" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/topics/{id}/sentiment:
+    get:
+      tags: [sentiment]
+      summary: Emotion distribution and sentiment timeline
+      parameters:
+        - { $ref: "#/components/parameters/TopicID" }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        "200":
+          description: Sentiment payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  topic_id: { type: integer, format: int64 }
+                  overall_score: { type: number, format: double }
+                  analyzed_posts: { type: integer, format: int64 }
+                  total_posts: { type: integer, format: int64 }
+                  distribution:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        emotion: { type: string }
+                        count: { type: integer, format: int64 }
+                        share: { type: number, format: double }
+                  timeline:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        bucket: { type: string, format: date-time }
+                        avg_score: { type: number, format: double }
+                        post_count: { type: integer, format: int64 }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/topics/{id}/demographics:
+    get:
+      tags: [demographics]
+      summary: Aggregated audience groups, language distribution and regional patterns
+      parameters:
+        - { $ref: "#/components/parameters/TopicID" }
+      responses:
+        "200":
+          description: Audience snapshot
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  topic_id: { type: integer, format: int64 }
+                  language_distribution: { type: object, additionalProperties: { type: number } }
+                  region_distribution: { type: object, additionalProperties: { type: number } }
+                  interest_distribution: { type: object, additionalProperties: { type: number } }
+                  audience_groups:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        label: { type: string }
+                        share: { type: number }
+                        description: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/topics/{id}/trends:
+    get:
+      tags: [trends]
+      summary: Rising keywords, growth scores and trend history
+      parameters:
+        - { $ref: "#/components/parameters/TopicID" }
+      responses:
+        "200":
+          description: Trend payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  topic_id: { type: integer, format: int64 }
+                  overall:
+                    type: object
+                    properties:
+                      keyword: { type: string }
+                      trend_score: { type: number }
+                      growth_rate: { type: number }
+                      velocity: { type: number }
+                  rising_keywords:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        keyword: { type: string }
+                        trend_score: { type: number }
+                        growth_rate: { type: number }
+                        velocity: { type: number }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/topics/{id}/network:
+    get:
+      tags: [network]
+      summary: Graph nodes, edges, influence scores and communities
+      parameters:
+        - { $ref: "#/components/parameters/TopicID" }
+      responses:
+        "200":
+          description: Network payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  topic_id: { type: integer, format: int64 }
+                  nodes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer, format: int64 }
+                        external_user_reference: { type: string }
+                        display_name: { type: string }
+                        platform: { type: string }
+                        influence_score: { type: number }
+                        community_id: { type: integer }
+                  edges:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        source_node: { type: integer, format: int64 }
+                        target_node: { type: integer, format: int64 }
+                        interaction_type: { type: string, enum: [reply, mention, repost, quote] }
+                        weight: { type: integer }
+                  top_influencers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        reference: { type: string }
+                        display_name: { type: string }
+                        influence_score: { type: number }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/topics/{id}/dashboard:
+    get:
+      tags: [dashboard]
+      summary: Complete topic intelligence (timeline + sentiment + demographics + trends + network + AI summary)
+      parameters:
+        - { $ref: "#/components/parameters/TopicID" }
+      responses:
+        "200":
+          description: Dashboard payload
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  topic: { $ref: "#/components/schemas/Topic" }
+                  generated_at: { type: string, format: date-time }
+                  statistics:
+                    type: object
+                    properties:
+                      overview:
+                        type: object
+                        properties:
+                          total_posts: { type: integer, format: int64 }
+                          total_engagement: { type: integer, format: int64 }
+                          distinct_authors: { type: integer, format: int64 }
+                          avg_sentiment: { type: number }
+                  summary:
+                    type: object
+                    properties:
+                      title: { type: string }
+                      executive_summary: { type: string }
+                      key_findings:
+                        type: array
+                        items: { type: string }
+                      mode: { type: string, enum: [template, ml-service] }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/search/posts:
+    get:
+      tags: [search]
+      summary: Full-text search over collected posts
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+      responses:
+        "200":
+          description: Ranked search hits (empty when SEARCH_ENABLED=false)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  search_enabled: { type: boolean }
+                  hits:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer, format: int64 }
+                        score: { type: number }
+                        content: { type: string }
+                        author: { type: string }
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    TopicID:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+  responses:
+    BadRequest:
+      description: Validation error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string }
+            message: { type: string }
+    AuthResponse:
+      type: object
+      properties:
+        token: { type: string }
+        expires_at: { type: string, format: date-time }
+        user:
+          type: object
+          properties:
+            id: { type: integer, format: int64 }
+            name: { type: string }
+            email: { type: string }
+            role: { type: string }
+    Topic:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        keywords:
+          type: array
+          items: { type: string }
+        created_at: { type: string, format: date-time }
+    Window:
+      type: object
+      properties:
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+    Post:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        platform: { type: string }
+        author_reference: { type: string }
+        content: { type: string }
+        language: { type: string }
+        timestamp: { type: string, format: date-time }
+        engagement_count: { type: integer }

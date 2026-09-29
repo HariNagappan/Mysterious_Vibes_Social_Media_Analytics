@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pulsegraph-config
+  namespace: pulsegraph
+data:
+  APP_ENV: "production"
+  RUN_MIGRATIONS: "true"
+  LOG_LEVEL: "info"
+  DATABASE_URL: "postgres://pulsegraph:pulsegraph@postgres:5432/pulsegraph?sslmode=disable"
+  REDIS_ADDR: "redis:6379"
+  ML_SENTIMENT_URL: "http://sentiment-service:8001"
+  ML_EMBEDDING_URL: "http://embedding-service:8002"
+  ML_SUMMARIZER_URL: "http://summarizer-service:8003"

@@ -1,0 +1,35 @@
+# Binaries
+bin/
+*.exe
+*.test
+*.out
+
+# Environment files (secrets never belong in git)
+.env
+.env.local
+*.local.env
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS noise
+.DS_Store
+Thumbs.db
+
+# Go
+vendor/
+coverage.out
+coverage.html
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local data dumps
+demo_data.sql
+*.csv

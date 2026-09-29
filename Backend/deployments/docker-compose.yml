@@ -1,0 +1,143 @@
+# PulseGraph - full local stack.
+#
+#   docker compose -f deployments/docker-compose.yml up --build
+#
+# Optional profiles:
+#   --profile search      starts Elasticsearch (also set SEARCH_ENABLED=true)
+#   --profile monitoring  starts Prometheus on :9090
+name: pulsegraph
+
+x-go-env: &go-env
+  APP_ENV: development
+  DATABASE_URL: postgres://pulsegraph:pulsegraph@postgres:5432/pulsegraph?sslmode=disable
+  REDIS_ADDR: redis:6379
+  ML_SENTIMENT_URL: http://sentiment-service:8001
+  ML_EMBEDDING_URL: http://embedding-service:8002
+  ML_SUMMARIZER_URL: http://summarizer-service:8003
+  LOG_LEVEL: info
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pulsegraph
+      POSTGRES_PASSWORD: pulsegraph
+      POSTGRES_DB: pulsegraph
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulsegraph -d pulsegraph"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: deployments/docker/Dockerfile.api
+    restart: unless-stopped
+    environment:
+      <<: *go-env
+      APP_PORT: "8080"
+      RUN_MIGRATIONS: "true"
+      JWT_SECRET: pulsegraph-local-demo-secret
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deployments/docker/Dockerfile.worker
+    restart: unless-stopped
+    environment:
+      <<: *go-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      sentiment-service:
+        condition: service_started
+      embedding-service:
+        condition: service_started
+
+  scheduler:
+    build:
+      context: ..
+      dockerfile: deployments/docker/Dockerfile.scheduler
+    restart: unless-stopped
+    environment:
+      <<: *go-env
+      DEMO_INGEST_ENABLED: "true"
+      DEMO_INGEST_INTERVAL: 30s
+      SCHEDULE_INTERVAL: 2m
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  sentiment-service:
+    build:
+      context: ../ml-services/sentiment-service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+
+  embedding-service:
+    build:
+      context: ../ml-services/embedding-service
+    restart: unless-stopped
+    ports:
+      - "8002:8002"
+
+  summarizer-service:
+    build:
+      context: ../ml-services/summarizer-service
+    restart: unless-stopped
+    ports:
+      - "8003:8003"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    profiles: ["search"]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    profiles: ["monitoring"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+volumes:
+  postgres-data:
+  redis-data:

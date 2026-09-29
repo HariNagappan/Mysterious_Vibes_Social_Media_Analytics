@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentiment-service
+  namespace: pulsegraph
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sentiment-service
+  template:
+    metadata:
+      labels:
+        app: sentiment-service
+    spec:
+      containers:
+        - name: sentiment-service
+          image: pulsegraph/sentiment-service:dev
+          ports:
+            - containerPort: 8001
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentiment-service
+  namespace: pulsegraph
+spec:
+  selector:
+    app: sentiment-service
+  ports:
+    - port: 8001
+      targetPort: 8001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: embedding-service
+  namespace: pulsegraph
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: embedding-service
+  template:
+    metadata:
+      labels:
+        app: embedding-service
+    spec:
+      containers:
+        - name: embedding-service
+          image: pulsegraph/embedding-service:dev
+          ports:
+            - containerPort: 8002
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: embedding-service
+  namespace: pulsegraph
+spec:
+  selector:
+    app: embedding-service
+  ports:
+    - port: 8002
+      targetPort: 8002
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: summarizer-service
+  namespace: pulsegraph
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: summarizer-service
+  template:
+    metadata:
+      labels:
+        app: summarizer-service
+    spec:
+      containers:
+        - name: summarizer-service
+          image: pulsegraph/summarizer-service:dev
+          ports:
+            - containerPort: 8003
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: summarizer-service
+  namespace: pulsegraph
+spec:
+  selector:
+    app: summarizer-service
+  ports:
+    - port: 8003
+      targetPort: 8003

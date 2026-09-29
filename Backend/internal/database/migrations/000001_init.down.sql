@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS graph_edges;
+DROP TABLE IF EXISTS graph_nodes;
+DROP TABLE IF EXISTS trend_analytics;
+DROP TABLE IF EXISTS demographic_analytics;
+DROP TABLE IF EXISTS sentiment_results;
+DROP TABLE IF EXISTS social_posts;
+DROP TABLE IF EXISTS topics;
+DROP TABLE IF EXISTS social_sources;
+DROP TABLE IF EXISTS users;

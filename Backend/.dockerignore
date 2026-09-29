@@ -1,0 +1,6 @@
+.git
+**/__pycache__
+**/*.pyc
+*.out
+coverage.*
+.env
